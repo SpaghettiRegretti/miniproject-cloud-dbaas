@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+import subprocess
+import argparse
+import json
+import sys
+
+def check_and_start_docker():
+    print("[*] Mengecek status mesin Docker...")
+    try:
+        subprocess.run(["docker", "info"], capture_output=True, check=True)
+        print(" -> Docker daemon sudah berjalan.\n")
+    except subprocess.CalledProcessError:
+        print(" -> Docker belum berjalan. Mencoba menyalakan Docker (memerlukan password sudo)...")
+        try:
+            subprocess.run(["sudo", "systemctl", "start", "docker"], check=True)
+            print(" -> Docker berhasil dinyalakan!\n")
+        except subprocess.CalledProcessError:
+            print(" -> [ERROR] Gagal menyalakan Docker. Silakan cek instalasi Docker atau nyalakan manual.")
+            sys.exit(1)
+        except FileNotFoundError:
+            print(" -> [ERROR] Perintah 'systemctl' tidak ditemukan. Sistem ini mungkin tidak menggunakan systemd.")
+            sys.exit(1)
+
+def create_database(args):
+    print(f"[*] Cloud Provider menerima request pembuatan layanan...")
+    print(f"[*] Menyiapkan database: {args.db_name} untuk user {args.db_user}...")
+    
+    command = [
+        "docker", "run", "-d",
+        "--name", args.db_name,
+        "-e", f"POSTGRES_USER={args.db_user}",
+        "-e", f"POSTGRES_PASSWORD={args.db_password}",
+        "-P", 
+        "postgres:alpine"
+    ]
+    try:
+        subprocess.run(command, capture_output=True, text=True, check=True)
+        print(f" -> Berhasil dibuat. Container {args.db_name} sedang berjalan.\n")
+    except subprocess.CalledProcessError as e:
+        error_msg = e.stderr.strip().replace('\n', ' ')
+        print(f" -> Gagal: {error_msg}\n")
+
+def monitor_database(args):
+    print(f"[*] Cloud Provider memonitor kesehatan sistem untuk database: {args.db_name}...")
+    
+    command = [
+        "docker", "stats", args.db_name,
+        "--no-stream",
+        "--format", '{"container": "{{.Container}}", "cpu_perc": "{{.CPUPerc}}", "mem_usage": "{{.MemUsage}}", "mem_perc": "{{.MemPerc}}"}'
+    ]
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        stats = json.loads(result.stdout.strip())
+        print(" -> Status Kesehatan Container:")
+        print(f"    - Container ID : {stats['container']}")
+        print(f"    - Penggunaan CPU : {stats['cpu_perc']}")
+        print(f"    - Penggunaan RAM : {stats['mem_usage']} ({stats['mem_perc']})\n")
+    except subprocess.CalledProcessError as e:
+        error_msg = e.stderr.strip().replace('\n', ' ')
+        print(f" -> Gagal memonitor: {error_msg}\n")
+    except json.JSONDecodeError:
+        print(f" -> Gagal: Container {args.db_name} tidak ditemukan atau belum berjalan.\n")
+
+if _name_ == "_main_":
+    parser = argparse.ArgumentParser(description="pgCloud Provisioner - CLI untuk Cloud Consumer")
+    subparsers = parser.add_subparsers(dest="command", help="Pilih operasi: create atau monitor")
+
+    create_parser = subparsers.add_parser("create", help="Membuat instance database baru")
+    create_parser.add_argument("--db-name", required=True, help="Nama layanan database (bebas)")
+    create_parser.add_argument("--db-user", required=True, help="Username untuk akses DB")
+    create_parser.add_argument("--db-password", required=True, help="Password untuk akses DB")
+    create_parser.set_defaults(func=create_database)
+
+    monitor_parser = subparsers.add_parser("monitor", help="Merekam kesehatan sistem database")
+    monitor_parser.add_argument("--db-name", required=True, help="Nama layanan database yang ingin dimonitor")
+    monitor_parser.set_defaults(func=monitor_database)
+
+    args = parser.parse_args()
+    
+    if args.command:
+        check_and_start_docker()
+        args.func(args)
+    else:
+        parser.print_help()
