@@ -4,6 +4,13 @@ pgCloud adalah antarmuka Command Line Interface (CLI) berbasis skrip Python murn
 
 Proyek ini dibuat untuk memenuhi Tugas Mini Project Mata Kuliah Komputasi Awan. Layanan ini bertindak sebagai *Cloud Provider* yang dapat melakukan *provisioning* (pembuatan wadah database terisolasi) dan *monitoring* (perekaman kesehatan sistem seperti CPU dan RAM) secara otomatis tanpa melalui dashboard (GUI).
 
+**Anggota Kelompok:**
+1. Bagas Vieri Surya Putra  (25/575242/NPA/20020)
+2. Aditya Eka Narayan  (25/575258/NPA/20026)
+3. Nayla Aulia Wijaya   (25/575245/NPA/20021)
+4. Nabil Hibban Hardian  (25/575252/NPA/20025)
+5. Angela Echa Naresti  (25/575275/NPA/20027)
+
 ## Prasyarat (Prerequisites)
 Sebelum menggunakan CLI ini, pastikan sistem operasi Linux Anda telah terinstal:
 * **Python 3**
